@@ -1,5 +1,5 @@
 # Autonoma
- A Framework for High Throughput Computational Calculations and Simulations on the Palmetto High Performance Computing Cluster
+ A tool for high throughput computational simulations on the Palmetto High Performance Computing Cluster.
  
 
 ### Scripts
