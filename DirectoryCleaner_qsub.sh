@@ -47,6 +47,7 @@ fi
 # NEED TO: Make gjf file generic
 echo "$(timestamp) INFO: [$file_name] Copying input files"
 cp G09-Sub-Multi.sh "${gjf_file}" rerun.sh "${DIR}"
+cp -r ./Scripts "${DIR}/Scripts"
 #cp G09-Sub-Multi.sh mo7s12_h2s12-u1.gjf rerun.sh ${DIR}
 
 echo "$(timestamp) INFO: [$file_name] Script Shutting Down"
