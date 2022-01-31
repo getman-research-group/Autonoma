@@ -12,3 +12,5 @@
 
 Please add the following to your .bashrc or run this command before running the scripts:
 `module add pcre/8.44-gcc/8.4.1`
+
+Please also note that if you are not on Clemson's campus network, you will need to connect to via Clemson's VPN to access the Palmetto Cluster and your My.VM.
