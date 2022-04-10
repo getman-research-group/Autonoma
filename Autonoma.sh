@@ -11,11 +11,22 @@
 foldername=$1 # folder to peform calculations in
 gjf_file=$2 # gjf file name
 #echo $1 $2
-log_G09_final="${foldername}.log"
-log_G09_temp="${foldername}_tmp.log"
-gjf_name="${gjf_file%.*}"
-#echo $log_G09
-#exit
+
+gjf_name="${gjf_file%.*}" # gjf without file extension but including subfolder. e.g. h2o/h2o
+arrIN=(${gjf_name//// }) # arrIN=(${gjf_name//;/ }) third character is delimiter
+# from: https://stackoverflow.com/questions/918886/how-do-i-split-a-string-on-a-delimiter-in-bash
+len=${#arrIN[@]}
+gjf_only="${arrIN[-1]}"
+if (( len > 1 )); then
+  folder="${arrIN}/"
+else
+  folder=""
+fi
+# echo "${gjf_name}"
+# echo "${gjf_only}"
+# echo "${arrIN[-1]}"
+# echo "${folder}"
+# echo "${len}"
 
 # Set directory containing other scripts (log file will also be stored here)
 mainDIR="$(pwd)"
@@ -30,7 +41,13 @@ dir_GJF=$(pwd) # Set current working directory
                 # Needs to be done every time the script uses "cd"
                 # (change directory).
 
-. ./Scripts/Functions.sh
+# Import functions from the functions script.
+. ./Scripts/Functions.sh # runs the code in this instance of bash
+    # https://linoxide.com/make-bash-script-executable-using-chmod/
+
+ini_timestamp=$(date +"%Y-%m-%d %H-%M-%S.%3N %zZ %Z") # time when script was started
+log_Autonoma="$(pwd)/Output/${foldername}_${ini_timestamp}.csv" # log file for Autonoma
+log_DirClean="$(pwd)/Output/${foldername}_${ini_timestamp}_DirClean.log" # log file for Directory Cleaner
 
 # # exit when any command fails
 # set -e
@@ -109,63 +126,39 @@ echo "$(script_info),WARNING,\"Messages may occur out of sequential order\""
 echo "$(script_info),INFO,Start time recorded as ${ini_timestamp}"
 echo "$(script_info),INFO,\"Running Scripts in ${mainDIR}\""
 echo "$(script_info),INFO,Directory Cleaner log file: ${log_DirClean}"
-# Define directory to clean and run new scripts in
-#DIR="${mainDIR}/TestDirectory"
-DIR="${mainDIR}/${foldername}"
 
-cleaner=$(qsub -v DIR="\"${DIR}\"",gjf_file="\"$gjf_file\"" DirectoryCleaner_qsub.sh) # run DirectoryCleaner job
-#cleaner=$(qsub -v DIR="\"${DIR}\"",gjf_file="\"$gjf_file\"" -o "\"${log_DirClean}\"" -j oe DirectoryCleaner_qsub.sh) # run DirectoryCleaner job
+# Define directory to clean and run new scripts in
+DIR="${mainDIR}/Output/"
+
+cleaner=$(qsub -v DIR="\"${DIR}\"",gjf_file="\"$gjf_file\"" DirectoryCleaner.sh) # run DirectoryCleaner job
+
+DIR="${mainDIR}/Output/${folder}"
+
+#cleaner=$(qsub -v DIR="\"${DIR}\"",gjf_file="\"$gjf_file\"" -o "\"${log_DirClean}\"" -j oe DirectoryCleaner.sh) # run DirectoryCleaner job
+
+# The cleanup job creates a new directory based on the input file name
+# If the directory exists, it removes all files and folders from it first
+# Once the directory is made or cleaned, any files needed to run the job
+# (specified in the DirectoryCleaner.sh script) will be copied over.
+
 sleep 1s
 echo "$(script_info),INFO,Starting cleanup job ${cleaner}"
 chk_num="${cleaner%.*}0"
 #echo "Check #: $chk_num"
 
 chkclean=$(qstat "${cleaner}" | sed 's/ .*//') # parses first word
-#echo $(timestamp) "INFO: $chkclean"
+echo $(timestamp) "INFO: $chkclean"
 
+### UNCOMMENT
 if [ $chk_num -eq 0 ]; then
     echo "$(script_info),ERROR,Failed to detect qsub job. Script terminated."
     exit
 fi
 
-# Escape from while loop when it takes too long (>5 minutes)
-j1=1
-j2=0
-
-# For checking if job is finished or if fluke network error occured 
-j3=0
-j4=0
-
-#while [[ -n "${chkclean}" -a ! -z "${chkclean}" ]]; do # Wait for the cleaner job to finish
-#while [ $chk_num -gt 0 ]
-while [ $((j3+j4)) -ne 2 ]; do
-    j3=1
-    chkclean=$(qstat "${cleaner}" | sed 's/ .*//')
-
-    while [ -n "${chkclean}" ]; do
-        j3=0
-        echo "$(script_info),INFO,Cleaner ${cleaner} running"
-        if (( "$j1" == 1 )); then
-            sleep 1s
-            j1=0
-            j2=$(( "$j2" + 1 ))
-        else
-            sleep 5s
-            j2=$(( "$j2" + 5 ))
-            if (( "$j2" >= 5*60 )); then
-                echo "$(script_info),ERROR,Cleanup job ${cleaner} exceeded 5 minute runtime in ${DIR}. Script Terminated"
-                exit
-            fi
-        fi
-        chkclean=$(qstat "${cleaner}" | sed 's/ .*//')
-    done
-
-    echo "$(script_info),INFO,Cleaner ${cleaner} not detected as running. Confirming..."
-    j4=$((j3));
-    sleep 1m # Wait 5 minutes before confirming job is actually finished
-    # This is to avoid the script thinking the job has finished when an error occurs connecting to
-    # the server to perform the qstat request.
-done
+# === Check the status of the cleanup job ===
+cleaner_checker # Run the cleaner_checker function
+# (this function is in ./Scripts/Functions.sh)
+# Reading material: https://stackoverflow.com/questions/8818119/how-can-i-run-a-function-from-a-script-in-command-line
 
 sleep 1s
 
@@ -185,11 +178,12 @@ fi
 dir_GJF=$(pwd) # Set current working directory
 echo "$(script_info),INFO,Working Directory Changed"
 
-exit
+#vaspgeom
+#vaspgeom_output=$(vaspgeom)
+#echo "$(script_info),INFO,${vaspgeom_output}"
 
 #echo "$(script_info),INFO,$(pwd)"
 #echo "$(script_info),INFO,$(wrk_dir)"
-
 # https://linuxize.com/post/bash-while-loop/
 # https://linuxize.com/post/bash-for-loop/
 # https://www.garron.me/en/go2linux/bash-for-loop-break-continue-sintax.html
@@ -200,9 +194,9 @@ exit
 
 #for i in {1..5}; do # Run loop up to 5 times
 #i_true=0
-for i in {1..1}; do # Run loop up to 5 times
+for i in {1..2}; do # Run loop up to 5 times
     #i_true=i_true+1 # Keeps track of how many times the loop is run.
-    job=$(qsub G09-Sub-Multi.sh)
+    job=$(qsub subvaspc2.sh)
     echo "$(script_info),INFO,Gaussian Calculation Run $i "
     echo "$(script_info),INFO,Starting job $job"
     sleep 1s
@@ -216,45 +210,19 @@ for i in {1..1}; do # Run loop up to 5 times
         exit
     fi
     curr_G09_ID="$job" # Update current G09 Job ID
+    arr_JOBID=(${curr_G09_ID//./ }) # arrIN=(${gjf_name//;/ }) third character is delimiter
+    JOBID=${arr_JOBID[1]}
+    
 
-    # For having different time delay after first job check
-    k1=1
-    k2=0
-
-    # For checking if job is finished or if a fluke network error occured 
-    k3=0
-    k4=0
-    while [ $((k3+k4)) -ne 2 ]; do
-        k3=1
-        chkjob=$(qstat "$job")
-        
-        while [ -n "$chkjob" ]; do # ADD escape from while loop when it takes too long
-            k3=0
-            if (( k1==1 )); then
-                echo "$(script_info),INFO,Job $job running"
-                sleep 5s
-                k1=0
-            else
-                k2=$(("$k2" + 1))
-                if (( k2==60 )); then #60  # Only log update every hour
-                    k2=0
-                    echo "$(script_info),INFO,Job $job running"
-                fi
-                sleep 1m
-            fi
-            chkjob=$(qstat "$job")
-        done
-        k4=$((k3));
-        echo "$(script_info),INFO,Job $job detected as not running. Confirming..."
-        sleep 1m # Wait 5 minutes before confirming job is actually finished
-        # This is to avoid the script thinking the job has finished when an error occurs connecting to
-        # the server to perform the qstat request.
-    done
+    # === Run the job ===
+    job_checker # Run the job_checker function
+    # (this function is in ./Scripts/Functions.sh)
+    # Reading material: https://stackoverflow.com/questions/8818119/how-can-i-run-a-function-from-a-script-in-command-line
 
     sleep 1s
     echo "$(script_info),INFO,Job $job has completed"
     
-    . ./Scripts/Verification.sh # runs the code within test.sh in this instance of bash
+    . ./Scripts/Verification.sh # runs the code in this instance of bash
     # https://linoxide.com/make-bash-script-executable-using-chmod/
 
 done

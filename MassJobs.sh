@@ -60,15 +60,32 @@ echo "INFO,Script Initializing" > >(while IFS= read -r line;
 # kill PID
 # use if this script crashes while parallel processes are running. helpful for terminating those processes
 
+if ! cd "$(pwd)/Input" ; then # Attempt to change the working directory; report error if failure occurs
+    echo "$(timestamp) ERROR: Changing working directory to \"$(pwd)/Input\" failed. Script Terminated"
+    exit # Terminate the script
+fi
+
 # Array of GJF files is the same folder as this script.
-#array1=($(find . -mindepth 1  -maxdepth 1 -type f -name "*.gjf" -printf '%P\n'))
-mapfile -t array1 < <(find . -mindepth 1  -maxdepth 1 -type f -name "*.gjf" -printf '%P\n')
+filetype="INCAR" #"*.gjf"
+mapfile -t array1 < <(find . -mindepth 1  -maxdepth 2 -type f -name "$filetype" -printf '%P\n')
+
+if ! cd ".." ; then # Attempt to change the working directory; report error if failure occurs
+    echo "$(timestamp) ERROR: Changing working directory failed. Script Terminated"
+    exit # Terminate the script
+fi
+
 for gjf in "${array1[@]}"; do # gjf is the "filename.gjf"
-        #[ -d $gjf ]
-        filename="${gjf%.*}" # filename is the "filename"
+        #echo "$gjf"
+        name="${gjf%.*}" # filename is the "filename"
+        name="${name%/*}"
+        #echo "$name"
+
+        # Uses the folder name for the input scripts if located in a subfolder.
+        # Uses the file name for the input scripts if they are not in a subfolder.
+        
         #echo "filename: $filename, e: $e" # uncomment to see behavior
         
-        ./Autonoma_bash.sh "${filename}" "${gjf}" &
+        ./Autonoma.sh "${name}" "${gjf}" &
         # ./Autonoma_bash.sh $filename$i $gjf &
         
         # break
@@ -77,9 +94,7 @@ for gjf in "${array1[@]}"; do # gjf is the "filename.gjf"
         # cp ~/bin/G09-Sub-Multi.sh $filename
         # new_dir+=("$filename")
         
-        # let "i=i+1"
         sleep 2s # added so log filenames are not the same
-        # exit # only let one job run
 done
 
 
