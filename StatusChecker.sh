@@ -20,8 +20,20 @@ status_csv="$(pwd)/Status.csv" # Status file for jobs running from this script
 read -r line < "${log_file}"
 echo "${line}" > "${status_csv}"
 
+if ! cd "$(pwd)/Input" ; then # Attempt to change the working directory; report error if failure occurs
+    echo "$(timestamp) ERROR: Changing working directory to \"$(pwd)/Output\" failed. Script Terminated"
+    exit # Terminate the script
+fi
+
 # Array of GJF files is the same folder as this script.
-mapfile -t array1 < <(find . -mindepth 1  -maxdepth 1 -type f -name "*.gjf" -printf '%P\n')
+filetype="*.gjf"
+mapfile -t array1 < <(find . -mindepth 1  -maxdepth 2 -type f -name "$filetype" -printf '%P\n')
+
+if ! cd ".." ; then # Attempt to change the working directory; report error if failure occurs
+    echo "$(timestamp) ERROR: Changing working directory failed. Script Terminated"
+    exit # Terminate the script
+fi
+
 for gjf in "${array1[@]}"; do # gjf is the "filename.gjf"
         filename="${gjf%.*}" # filename is the "filename"
         # echo "${filename}"
@@ -36,6 +48,7 @@ for gjf in "${array1[@]}"; do # gjf is the "filename.gjf"
         # Get Most Recent status message
         status_msg=$(tac "${log_file}" | grep -m1 "${filename}")
         echo "${status_msg}" >> "${status_csv}"
+        echo "$filename"
 
         # For accessing individual log files (if desired)
         # gjf_logfile="$(pwd)/${filename}_${gjf_starttime}.log"
