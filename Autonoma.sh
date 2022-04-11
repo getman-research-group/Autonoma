@@ -159,7 +159,8 @@ echo "$(script_info),INFO,Working Directory Changed"
 # https://linuxize.com/post/bash-for-loop/
 # https://www.garron.me/en/go2linux/bash-for-loop-break-continue-sintax.html
 
-for i in {1..5}; do # Run loop up to 5 times
+i=1
+while (( i <= "$max_runs")); do # Run loop up to until max number of allowed runs is achieved
     #i_true=i_true+1 # Keeps track of how many times the loop is run.
     if [ "${task_type}" = "Gaussian" ]; then
         job="$(qsub Gaussian_G09-Sub-Multi.sh)"
@@ -197,6 +198,7 @@ for i in {1..5}; do # Run loop up to 5 times
     elif [ "${task_type}" = "VASP" ]; then
         . ./Scripts/Verification_VASP.sh # runs the code in this instance of bash
     fi
+    i=$(( "$i" + 1 )) # Keeps track of how many times the loop is run.
 done
 
 echo "$(script_info),INFO,Script shutting down"
