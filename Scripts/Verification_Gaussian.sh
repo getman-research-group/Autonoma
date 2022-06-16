@@ -2,6 +2,9 @@
 
 # Check for Gaussian Errors
 # Determine location of log file.
+log_G09_final="${foldername}.log"
+log_G09_temp="${foldername}_tmp.log"
+
 log_G09=$log_G09_final
 if [ ! -f "$log_G09" ]; then # if non-temporary log file does not exist
     log_G09=$log_G09_temp # then use temporary log file
@@ -36,7 +39,6 @@ if [ -n "${conv_chk}" ]; then
     # VERY HANDY TOOL:
     # https://www.regextester.com
 
-
     # Maximum Force Most Recent Info
     # First number is "Value"; Second number is "Threshold"
     Max_Force_info=$(tac "${log_G09}" | pcregrep -M '\n.*(?=Converged\?)' | grep -m1 'YES')
@@ -58,6 +60,17 @@ if [ -n "${conv_chk}" ]; then
     echo "$(script_info),INFO,${Max_Disp_info}"
     echo "$(script_info),INFO,${RMS_Disp_info}"
 
+    # Isolate numbers in info
+    #RMS_Disp_num=$(tac "${log_G09}" | pcregrep -M '\n.*\n.*\n.*\n.*(?=Converged\?)' | grep -m1 'YES' | grep -oE '([0-9.]+%?)')
+    #RMS_Disp_num=$(tac "${log_G09}" | pcregrep -M '\n.*\n.*\n.*\n.*(?=Converged\?)' | grep -m1 'YES' | grep -oE '([0-9.]+\b)')
+
+    # for number in $RMS_Disp_num; do
+    #     echo $number
+    # done
+
+    # Is most recent RMS Displacement check converged? (If so, returns "YES")
+    # RMS_Disp_cvg=$(tac "${log_G09}" | pcregrep -M '\n.*\n.*\n.*\n.*(?=Converged\?)' | grep -om1 'YES')
+
     # Convert info to array of strings
     # Split strings where spaces occur
     # https://linuxhandbook.com/bash-split-string/
@@ -65,7 +78,7 @@ if [ -n "${conv_chk}" ]; then
     IFS=' ' read -ra RMS_Force_array <<< "$RMS_Force_info"
     IFS=' ' read -ra Max_Disp_array <<< "$Max_Disp_info"
     IFS=' ' read -ra RMS_Disp_array <<< "$RMS_Disp_info"
-    
+
     # Set maximum thresholds. Script is to terminate if these values are exceeded.
     lim_Max_Force=10.01
     lim_RMS_Force=10.01
@@ -77,6 +90,11 @@ if [ -n "${conv_chk}" ]; then
     
     # Passing results from 'bc' to variable:
     # https://askubuntu.com/questions/229446/how-to-pass-results-of-bc-to-a-variable
+
+    #echo "$(bc <<< "10 <= 1.00")"
+    #if [ $(bc <<< "10 <= 1.00") -eq 1 ]; then
+    #    echo "$(script_info),INFO,RMS Displacement Converged. 10 <= 1.00"
+    #fi
 
 
     # Comparing strings:
@@ -108,6 +126,11 @@ if [ -n "${conv_chk}" ]; then
             echo "$(script_info),ERROR,Maximum Force Exceeds Allowed Range. Script terminated. ${Max_Force_array[2]} > ${lim_Max_Force}"
             exit
         fi
+        # Check if Max Force is close to converging
+        #if [ $(bc <<< "${Max_Force_array[2]} <= ${near_Max_Force}") -eq 1 ]; then
+        #    echo "$(script_info),INFO,Maximum Force NOT Converged. ${Max_Force_array[2]} > ${near_Max_Force}"
+        #fi
+        
     fi
 
     # Check if RMS Force has converged
@@ -160,10 +183,6 @@ err_chk=$(tac "${log_G09}" | grep -m1 "Error termination via Lnk1e")
 if [ -n "${err_chk}" ]; then
     echo "$(script_info),INFO,Gaussian error termination. Looking for errors."
     unknown_error=1 # 0 mean no, 1 means yes
-        # Used to determine if unknown or undocumented error occured
-    rerun_skip=0 # 0 mean no, 1 means yes
-        # Used to determine if the rerun script (creating new input files
-        # from existing outfiles) should be skipped
     ## CHECK for errors
 
     # ERROR 1: "Unrecognized atomic symbol"
@@ -217,7 +236,7 @@ if [ -n "${err_chk}" ]; then
         echo "$(script_info),ERROR,5: $error5"
         echo "$(script_info),ERROR Description,The calculation has exceeded the maximum limit of maxcyc"
         echo "$(script_info),ERROR Action,No operator intervention, resubmit job from last converged geometry"
-        unknown_error=0 # 0 mean no, 1 means yes
+        unknown_error=0
     fi
 
     # ERROR 6: "Error termination in NtrErr: NtrErr Called from FileIO."
@@ -248,28 +267,20 @@ if [ -n "${err_chk}" ]; then
     if [ -n "${check8}" ]; then
         echo "$(script_info),ERROR,8: $error8"
         echo "$(script_info),ERROR Description,The atom geometry is unable to converge"
-        echo "$(script_info),ERROR Action,Look at the convergence criterias table and determine if the job is to be resubmitted."
-        echo "$(script_info),ERROR Action,Autonoma will attempt automatic resubmission."
+        echo "$(script_info),ERROR Action,Look at the convergence criterias table and determine if the job is to be resubmitted"
         echo "$(script_info),ERROR,Script shutting down due to ERROR 8: $error8"
-        
-        max_runs=$(( "$max_runs" + 1 )) # increases max number of allowed runs by 1
-        echo "$(script_info),INFO,Max runs increased to ${max_runs} due to ERROR 8"
-        unknown_error=0
-        rerun_skip=1
+        exit
     fi
 
     if [ $unknown_error -eq 1 ]; then
         echo "$(script_info),ERROR,UNK: An unknown error an occured."
         echo "$(script_info),ERROR Description,An error not documented in Autonoma_bash.sh has occured."
         echo "$(script_info),ERROR Action,Operation action required."
-
         echo "$(script_info),ERROR,Script shutting down due to unknown ERROR."
         exit
     fi
 fi 
 
-if [ $rerun_skip -eq 0 ]; then
-    echo "$(script_info),INFO,Starting rerun.sh"
-    ./rerun.sh
-    echo "$(script_info),INFO,rerun.sh has finished"
-fi
+echo "$(script_info),INFO,Starting Gaussian_rerun.sh"
+./Gaussian_rerun.sh
+echo "$(script_info),INFO,Guassian_rerun.sh has finished"

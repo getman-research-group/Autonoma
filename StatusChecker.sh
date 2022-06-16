@@ -60,5 +60,4 @@ for gjf in "${array1[@]}"; do # gjf is the "filename.gjf"
         # echo "${firstString/Suzi/$secondString}"
 
 
-
 done

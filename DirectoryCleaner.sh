@@ -17,7 +17,6 @@ timestamp() {
 
 file_name="DirectoryCleaner"
 
-
 arrIN=(${gjf_file//// }) # arrIN=(${gjf_name//;/ }) third character is delimiter
 arrFILE=(${arrIN[0]//./ }) # arrIN=(${gjf_name//;/ }) third character is delimiter
 if (( len > 1 )); then
@@ -38,7 +37,6 @@ if ! cd "$PBS_O_WORKDIR" ; then # Attempt to change the working directory; repor
     echo "$(timestamp) ERROR: [$file_name] Changing working directory to \"$DIR\" failed. Script Terminated"
     exit # Terminate the script
 fi
-
 
 # Directory for all files to be created in
 if [ -d "${DIR}/${arrFILE[0]}" ]; then

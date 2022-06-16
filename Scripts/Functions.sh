@@ -17,15 +17,15 @@ function chk_converged() {
     echo "${converged}"
 }
 
-# Grab current G09 job ID
-function chk_G09_job_ID() {
-    echo "${curr_G09_ID}"
+# Grab current HPC job ID
+function chk_HPC_job_ID() {
+    echo "${curr_HPC_ID}"
 }
 
 # Single function to call in echo commands
 # Will print covergence status, working directory, current job ID, and script being run
 function script_info() {
-    echo "$(chk_converged),$(wrk_dir),$(chk_G09_job_ID),Autonoma"
+    echo "$(chk_converged),$(wrk_dir),$(chk_HPC_job_ID),Autonoma"
 }
 
 # Check the status of a cleaner job running on the cluster

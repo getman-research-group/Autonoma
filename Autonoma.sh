@@ -107,7 +107,7 @@ echo "$(script_info),INFO,\"Running Scripts in ${mainDIR}\""
 # Define directory to clean and run new scripts in
 DIR="${mainDIR}/Output/"
 
-cleaner=$(qsub -v DIR="\"${DIR}\"",gjf_file="\"$gjf_file\"",task_type="\"$task_type\"" DirectoryCleaner.sh) # run DirectoryCleaner job
+#cleaner=$(qsub -v DIR="\"${DIR}\"",gjf_file="\"$gjf_file\"",task_type="\"$task_type\"" DirectoryCleaner.sh) # run DirectoryCleaner job
 
 DIR="${mainDIR}/Output/${arrFILE[0]}"
 
@@ -133,7 +133,7 @@ if [ $chk_num -eq 0 ]; then
 fi
 
 # === Check the status of the cleanup job ===
-cleaner_checker # Run the cleaner_checker function
+#cleaner_checker # Run the cleaner_checker function
 # (this function is in ./Scripts/Functions.sh)
 # Reading material: https://stackoverflow.com/questions/8818119/how-can-i-run-a-function-from-a-script-in-command-line
 
@@ -161,11 +161,10 @@ echo "$(script_info),INFO,Working Directory Changed"
 
 i=1
 while (( i <= "$max_runs")); do # Run loop up to until max number of allowed runs is achieved
-    #i_true=i_true+1 # Keeps track of how many times the loop is run.
     if [ "${task_type}" = "Gaussian" ]; then
-        job="$(qsub Gaussian_G09-Sub-Multi.sh)"
+        job=$(qsub Gaussian_G09-Sub-Multi.sh)
     elif [ "${task_type}" = "VASP" ]; then
-        job="$(qsub VASP_subvaspc2.sh)"
+        job=$(qsub VASP_subvaspc2.sh)
     fi
     echo "$(script_info),INFO,${task_type} Calculation Run $i "
     echo "$(script_info),INFO,Starting HPC job $job"
@@ -177,7 +176,6 @@ while (( i <= "$max_runs")); do # Run loop up to until max number of allowed run
     chkjob_num="${job%.*}0"
     if [ $chkjob_num -eq 0 ]; then
         echo "$(script_info),ERROR,Failed to detect qsub job. Script terminated."
-        exit
     fi
     curr_HPC_ID="$job" # Update current HPC Job ID
     arr_JOBID=(${curr_HPC_ID//./ }) # arrIN=(${gjf_name//;/ }) third character is delimiter

@@ -1,70 +1,83 @@
 #!/bin/bash
 
-#echo "         Energy(eV)         MagMom         MaxGrad    Converged   "> summary2.dat
-
 # Check for VASP Errors
-# Determine location of log fil
 
-#L=$(ls -d */)     #Extract a List of folders
-#arr=($L)          #Convert to a list
-#Llen=${#arr[@]}
-#cwd=$(pwd)
-#echo ${L}
-#echo ${cwd}
-#echo ${Llen}
-#cd ${cwd}/${arr[j]}
-#echo "Entered Level Zero "
-
-vaspgeom
-vaspgeom_output=$(vaspgeom)
+#vaspgeom
+vaspgeom_output=$(vaspgeom 2>&1)
+echo "${vaspgeom_output}"
 
 #Error1: Cant open input file
 
+random_var1=$(echo "${vaspgeom_output}" | grep -o "Can't open input file")
+
 var_run=0
-if [ "${vaspgeom_output}" = "Can't open input file" ]; then
-      echo "$(script_info),INFO,Structure NOT Converged"
-      cat c2.0${JOBID}
-      walltime=$(grep 'PBS: job killed' c2.0${JOBID})
-      if [ "$(tail -n 3 walltime)" == "exceeded limit" ]; then
+output_check="Can't open input file"
+
+if [ "${random_var1}" = "${output_check}" ] 
+then
+  echo "$(script_info),INFO,Structure NOT Converged"
+      walltime=$(tac "c2.0${JOBID}" | grep -o "exceeded limit")
+      echo "${walltime}"
+      if [ "$walltime" == "exceeded limit" ]; then
             cd "$(head -n 1 zb-TO-SCRATCH.dir)"
             cp CONTCAR "${cwd}"
             cd "${cwd}"
             cp -n "POSCAR" "POSCAR_Old"
-            cp "CONTCAR" "POSCAR"
+            mv "CONTCAR" "POSCAR"
       fi   
 else
-      echo "$(script_info),INFO,Input files are correct"
-	var_run=1
+      echo "$(script_info),ERROR,Input files are incorrect"
+fi
+var_run=1
+
+#Error 3: single point check
+
+random_var3=$(echo "${vaspgeom_output}" | grep -o "STRUCTURAL RELAXATION UNCONVERGED IN 1 STEPS")
+output_check_2="STRUCTURAL RELAXATION UNCONVERGED IN 1 STEPS"
+
+if [ "${random_var3}" == "${output_check_2}" ] 
+then
+#NSW=$(tac "INCAR" | grep - "NSW")
+  vaspput=$(cat INCAR)
+  NSW=`echo $vaspput | sed 's/.*NSW = //; s/ .*//' `
+  #echo "$NSW"
+  Var_run=0
+  #echo $var
+  if [ "$NSW" = "$var" ]; then
+    echo "$(script_info),INFO,single point calculation"
+  else
+    echo "$(script_info),INFO,JOB converged in 1 ionic step"
+  fi
 fi
 
+#Error 2: Structure unconverged
 
-#Error 2: unconverged
+random_var2=$(echo "${vaspgeom_output}" | grep -o "STRUCTURAL RELAXATION UNCONVERGED IN 0 STEPS")
 
-if [ "${vaspgeom_output}" == "STRUCTURAL RELAXATION UNCONVERGED IN 0 STEPS" ]; then
-      NSW=$(grep 'NSW' INCAR})
-      if [ "${NSW}" == 0 ]; then
-            echo "$(script_info),INFO,single point calculation"
-            exit
-      fi
-else     
-      BTERM=$(grep 'BAD TERMINATION' c2.0${JOBID})
-      if [ "${BTERM}" == "BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES" ]; then
-            echo "$(script_info),ERROR,Error in JOB"
-            exit
-      fi
+if [ "random_var2=$(echo "${vaspgeom_output}" | grep -o "STRUCTURAL RELAXATION UNCONVERGED IN 0 STEPS")" ]
+then
+#echo "$random_var2"
+echo "$(script_info),INFO,Structure NOT Converged"      
+  error=$(tac "c2.o4787296" | grep -o -m1 "BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES")
+  #echo $error
+  if [ "$error" == "BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES" ]
+  then
+    echo "$(script_info),ERROR,BAD TERMINATION; MISSING INPUT VALUES"
+  else
+    bterm=$(tac "c2.o4787296" | grep -m1 "Error" -C 3)     
+    echo "$(script_info),ERROR,$bterm"
+  fi
 fi
 
-#Error 3: Entropy Presence
+#Error 4: Entropy Presence
 
 TS=$(echo "${vaspgeom_output}" | sed 's/.*T*S://; s/E(sg->0).*//')
-echo "$(script_info),INFO,TS=${TS}"
-if [ $(bc <<< "${TS} == 0.000") -eq 1 ]; then
-      echo "$(script_info),INFO,Entropy error"
-      exit
+if [ $(bc <<< "${TS} == 0.000") -eq 1 ]
+then
+  echo "$(script_info),INFO,Entropy error"
 fi              
 
-
-#Error 4: Electronic Energy error
+#Error 5: Electronic Energy error
      
 E=$(echo "${vaspgeom_output}" | sed 's/.*E(sg->0)://; s/eV.*//')
 echo "$(script_info),INFO,E=${E}"
@@ -73,30 +86,16 @@ if [ $(bc <<< "${E} > 0.000") -eq 1 ]; then
       exit
 fi              
 
-#Error 5: Max grad error
+#Error 6: Max grad error
 
 MG=$(echo "${vaspgeom_output}" | sed 's/.*Max Grad: //; s/ .*//')
 echo "$(script_info),INFO,MG=${MG}"
 if [ $(bc <<< "${MG} > 0.05") -eq 1 ]; then
-      echo "$(script_info),ERROR,Elec. Energy is positive"
+      echo "$(script_info),ERROR,Max Grad is High"
       exit
 fi              
 
 if (( var_run > 0 )); then
-	echo "$(script_info),INFO,Structure Converged"
-	exit
+      echo "$(script_info),INFO,Structure Converged"
+      exit
 fi
-
-#Verification
-
-# grep 'reached required accuracy - stopping structural energy minimisation' c2.0${JOBID}
-
-
-#TS=`echo $vaspgeom_output | sed 's/.*T*S://; s/E(sg->0).*//' `
-#MM=`echo $vaspgeom_output | sed 's/.*MagMom://; s/Max Grad:.*//' `
-#MG=`echo $vaspgeom_output | sed 's/.*Max Grad: //; s/ .*//' `
-#CV=`echo $vaspgeom_output | sed 's/.*relaxation //; s/in .*//' `
-
-  
-              
-echo "$(script_info),INFO,------------------------------------------------------END-----------------------------------------------------------------"

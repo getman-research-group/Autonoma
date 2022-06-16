@@ -45,13 +45,11 @@ echo "INFO,Script Initializing" > >(while IFS= read -r line;
     done >> "$log_file")
 #echo "INFO,\"Start date is" $(date +"%A, %B %d, %Y") "at" $(date +"%I:%M:%S %p")"\""
 
-
 # ==== IMPORTANT READ ====
 # use if this script crashes while parallel processes are running. helpful for terminating those processes
 # https://askubuntu.com/questions/1033866/how-to-stop-a-bash-while-loop-running-in-the-background
 # ps fjx
 # kill PID
-
 
 if ! cd "$(pwd)/Input" ; then # Attempt to change the working directory; report error if failure occurs
     echo "ERROR,Changing working directory to \"$(pwd)/Input\" failed. Script Terminated" > >(while IFS= read -r line;
@@ -59,7 +57,6 @@ if ! cd "$(pwd)/Input" ; then # Attempt to change the working directory; report 
         done >> "$log_file")
     exit # Terminate the script
 fi
-
 
 # Check filetype to look for based on user assigned task type
 if [ "${task_type}" = "Gaussian" ]; then
